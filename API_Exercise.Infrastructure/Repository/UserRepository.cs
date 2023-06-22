@@ -2,6 +2,7 @@
 using API_Exercise.Domain.Repository;
 using API_Exercise.Infrastructure.Data;
 using AutoMapper;
+using Dapper;
 using Microsoft.EntityFrameworkCore;
 
 namespace API_Exercise.Infrastructure.Repository
@@ -21,24 +22,56 @@ namespace API_Exercise.Infrastructure.Repository
 
         public async Task<IEnumerable<User>> GetAllUsers()
         {
-            //DAPPER QUERY
+            /////////////////////////////////////////////////////////////////////////////////////
+            //THIS SOLUTION USES THE MULTIPLE QUERY METHOD TO GET ALL USERS, COMPANIES AND TIME REGISTRATIONS
+            var sql = @"SELECT * FROM Users;
+                        SELECT * FROM Companies
+                        SELECT * FROM TimeRegistrations";
+
+            using (var connection = _dapperContext.CreateConnection())
+            {
+                using (var multi = await connection.QueryMultipleAsync(sql))
+                {
+                    var users = multi.Read<User>().ToList();
+                    var companies = multi.Read<Company>().ToList();
+                    var timeRegistrations = multi.Read<TimeRegistration>().ToList();
+
+                    foreach (var user in users)
+                    {
+                        user.Company = companies.FirstOrDefault(c => c.Id == user.CompanyId);
+                        user.TimeRegistration = timeRegistrations.Where(t => t.UserId == user.Id).ToList();
+                    }
+                    return users;
+                }
+            }
+            //////////////////////////////////////////////////////////////////////////////////////
+
+
+            /////////////////////////////////////////////////////////////////////////////////////
+            //THIS SOLUTION USES THE GROUPBY METHOD TO GROUP THE TIME REGISTRATIONS FOR EACH USER
+            //var sql = @"SELECT * FROM Users LEFT JOIN Companies ON Users.CompanyId = Companies.Id LEFT JOIN TimeRegistrations ON Users.Id = TimeRegistrations.UserId;";
+
             //using (var connection = _dapperContext.CreateConnection())
             //{
-            //    string query = "SELECT * FROM Users u LEFT JOIN TimeRegistrations t ON u.Id = t.UserId";
-            //    connection.Open();
-            //    var queryResult = await connection.QueryAsync<User, TimeRegistration, User>(query, (user, timeRegistration) =>
+            //    var users = await connection.QueryAsync<User, Company, TimeRegistration, User>(sql, (user, company, timeRegistration) =>
             //    {
-            //        user.TimeRegistration.Add(timeRegistration);
-
+            //        user.Company = company;
+            //        user.TimeRegistration.Add( timeRegistration);
             //        return user;
-            //    }, splitOn: "Id");
-
-            //    return queryResult;
+            //    }, splitOn: "Id, Id");
+            //    var result = users.GroupBy(u => u.Id).Select(g =>
+            //    {
+            //        var groupedUser = g.First();
+            //        groupedUser.TimeRegistration = g.Select(u => u.TimeRegistration.Single()).ToList();
+            //        return groupedUser;
+            //    });
+            //    return result;
             //}
+            //////////////////////////////////////////////////////////////////////////////////////
 
-            var users = await _context.Users.Include(u => u.Company).Include(u => u.TimeRegistration).ToListAsync();
+            //var users = await _context.Users.Include(u => u.Company).Include(u => u.TimeRegistration).ToListAsync();
 
-            return users;
+            //return users;
         }
 
         public async Task<User> GetUserById(int id)
