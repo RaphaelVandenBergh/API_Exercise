@@ -68,11 +68,11 @@ namespace API_Exercise.API.Controllers
 
         [HttpGet]
         [Route("user/{id}")]
-        public async Task<ActionResult<List<TimeRegistration>>> GetAllTimeRegistrationsForUser(int id)
+        public async Task<ActionResult<List<TimeRegistration>>> GetAllTimeRegistrationsForUser(int id, [FromQuery] int page, [FromQuery] int pagesize)
         {
             try
             {
-                var timeRegistrations = await _timeRegistrationRepository.GetAllTimeRegistrationsForUser(id);
+                var timeRegistrations = await _timeRegistrationRepository.GetAllTimeRegistrationsForUser(id, page,pagesize);
                 var TimeRegistrationsDTO = _mapper.Map<List<TimeRegistrationDTO>>(timeRegistrations);
                 return Ok(TimeRegistrationsDTO);
             }
